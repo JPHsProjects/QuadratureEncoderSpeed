@@ -1,5 +1,6 @@
 #include "QuadratureEncoder.h"
 
+//#define HOLDOFF_US  2000  // Hold-off time for ISR in microseconds
 
 static const char *TAG = "QuadEncoder";
 
@@ -81,32 +82,48 @@ void Encoders::encoderInit(){
 
 
 void IRAM_ATTR Encoders::encoderCount(){
-  
-  int EncoderPhaseA = digitalRead(this->_encoderPINA);  // MSB
-  int EncoderPhaseB = digitalRead(this->_encoderPINB);  // LSB
+//  if (esp_timer_get_time() - this->_last_isr_time > HOLDOFF_US){
+//   this->_last_isr_time = esp_timer_get_time();
 
-  int currentEncoded = (EncoderPhaseA << 1) | EncoderPhaseB;
-  int sum = (this->_lastEncoded << 2) | currentEncoded;
-  switch(sum){
-    case 0b0001:
-    case 0b0111:
-    case 0b1110:
-    case 0b1000:
-      this->_encoderCount--;
-      break;
-    case 0b0010:
-    case 0b1011:
-    case 0b1101:
-    case 0b0100:
-      this->_encoderCount++;
-      break;
-    default:
-      this->_encoderErrors++;
-      break;
+    int EncoderPhaseA = digitalRead(this->_encoderPINA);  // MSB
+    int EncoderPhaseB = digitalRead(this->_encoderPINB);  // LSB
+
+    int currentEncoded = (EncoderPhaseA << 1) | EncoderPhaseB;
+    int sum = (this->_lastEncoded << 2) | currentEncoded;
+
+    int64_t delta_t;
+
+    switch(sum){
+      case 0b0001:
+      case 0b0111:
+      case 0b1110:
+      case 0b1000:
+        this->_encoderCount--;
+        // IIR filter: Smoothen the time between counts by IIR filter with 2^3 steps (=shift >>3)
+        delta_t = -1 * esp_timer_get_time();// - this->_last_count_time;    // note the negative sign here, indicating backwards...
+        this->_last_count_time = esp_timer_get_time();
+        this->_time_between_counts = delta_t;
+        //this->_time_between_counts = this->_time_between_counts + ((delta_t - this->_time_between_counts)>> 3);
+        break;
+      case 0b0010:
+      case 0b1011:
+      case 0b1101:
+      case 0b0100:
+        this->_encoderCount++;
+        // IIR filter: Smoothen the time between counts by IIR filter with 2^3 steps (=shift >>3)
+        delta_t = esp_timer_get_time();// - this->_last_count_time;
+        this->_last_count_time = esp_timer_get_time();
+        this->_time_between_counts = delta_t;
+        //this->_time_between_counts = this->_time_between_counts + ((delta_t - this->_time_between_counts)>> 3);
+        break;
+      default:
+        this->_encoderErrors++;
+        break;
+    }
+    
+    this->_lastEncoded = currentEncoded;
   }
-  
-  this->_lastEncoded = currentEncoded;
-}
+//}
 
 long Encoders::getEncoderCount(){
   return _encoderCount;
@@ -117,4 +134,9 @@ void Encoders::setEncoderCount(long setEncoderVal){
 
 long Encoders::getEncoderErrorCount(){
   return _encoderErrors;
+}
+
+int32_t Encoders::getSpeed(){   // to work with integer numbers, calculate ticks/hour
+  return this->_time_between_counts;
+  //return (3600 * 1e6) / this->_time_between_counts;
 }
