@@ -102,8 +102,8 @@ void IRAM_ATTR Encoders::encoderCount(){
         // IIR filter: Smoothen the time between counts by IIR filter with 2^3 steps (=shift >>3)
         delta_t = -1 * esp_timer_get_time();// - this->_last_count_time;    // note the negative sign here, indicating backwards...
         this->_last_count_time = esp_timer_get_time();
-        this->_time_between_counts = delta_t;
-        //this->_time_between_counts = this->_time_between_counts + ((delta_t - this->_time_between_counts)>> 3);
+        //this->_time_between_counts = delta_t;
+        this->_time_between_counts = this->_time_between_counts + ((delta_t - this->_time_between_counts)>> 3);
         break;
       case 0b0010:
       case 0b1011:
@@ -113,8 +113,8 @@ void IRAM_ATTR Encoders::encoderCount(){
         // IIR filter: Smoothen the time between counts by IIR filter with 2^3 steps (=shift >>3)
         delta_t = esp_timer_get_time();// - this->_last_count_time;
         this->_last_count_time = esp_timer_get_time();
-        this->_time_between_counts = delta_t;
-        //this->_time_between_counts = this->_time_between_counts + ((delta_t - this->_time_between_counts)>> 3);
+        //this->_time_between_counts = delta_t;
+        this->_time_between_counts = this->_time_between_counts + ((delta_t - this->_time_between_counts)>> 3);
         break;
       default:
         this->_encoderErrors++;
@@ -137,6 +137,6 @@ long Encoders::getEncoderErrorCount(){
 }
 
 int32_t Encoders::getSpeed(){   // to work with integer numbers, calculate ticks/hour
-  return this->_time_between_counts;
-  //return (3600 * 1e6) / this->_time_between_counts;
+  //return this->_time_between_counts;
+  return (3600 * 1e6) / this->_time_between_counts;
 }
