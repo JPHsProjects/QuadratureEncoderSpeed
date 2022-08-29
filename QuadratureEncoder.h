@@ -16,6 +16,7 @@ class Encoders{
     long getEncoderErrorCount();
     static Encoders *_instances[MAX_NUM_ENCODERS];
     int32_t getSpeed();
+    int32_t getTestVal();
     
   private:
     static uint8_t _whichEncoder;
@@ -26,8 +27,9 @@ class Encoders{
     volatile int _lastEncoded = 0;
     volatile long _encoderErrors = 0;
     int64_t _last_isr_time = 0;
-    int64_t _time_between_counts = 0;
+    int32_t _us_between_encodercounts = 0;
     int64_t _last_count_time = 0;
+    int64_t _testval = 0;
 };
 
 #endif
